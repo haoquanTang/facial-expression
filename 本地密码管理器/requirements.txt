@@ -1,0 +1,6 @@
+pycryptodome==3.19.0
+pyperclip==1.8.2
+pytest>=7.4.0
+black>=23.0.0
+flake8>=6.0.0
+pyinstaller>=6.10.0
