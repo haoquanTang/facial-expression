@@ -1,0 +1,21 @@
+2025-09-08 16:54:54 - src.core.process_manager - INFO - logger.py:145 - 服务器端口占用检测工具启动
+2025-09-08 16:54:54 - src.core.process_manager - INFO - logger.py:145 - 启动命令行模式
+2025-09-08 16:54:54 - src.core.process_manager - INFO - logger.py:145 - 开始local扫描 - 目标: localhost, 端口数量: 3
+2025-09-08 16:54:54 - src.core.process_manager - ERROR - logger.py:153 - 获取系统连接信息失败: (pid=26473)
+2025-09-08 16:54:54 - src.core.process_manager - INFO - logger.py:145 - local扫描完成 - 目标: localhost, 总端口: 0, 占用: 0, 耗时: 0.05秒
+2025-09-08 16:55:40 - src.core.process_manager - ERROR - logger.py:153 - 获取系统连接信息失败: (pid=26473)
+2025-09-08 16:55:40 - src.core.process_manager - INFO - logger.py:145 - 开始local扫描 - 目标: localhost, 端口数量: 2
+2025-09-08 16:55:40 - src.core.process_manager - ERROR - logger.py:153 - 获取系统连接信息失败: (pid=26473)
+2025-09-08 16:55:40 - src.core.process_manager - INFO - logger.py:145 - local扫描完成 - 目标: localhost, 总端口: 0, 占用: 0, 耗时: 0.01秒
+2025-09-08 16:55:40 - src.core.process_manager - ERROR - logger.py:153 - 获取系统连接信息失败: (pid=26473)
+2025-09-08 16:55:40 - src.core.process_manager - ERROR - logger.py:153 - 获取系统连接信息失败: (pid=26473)
+2025-09-08 16:55:40 - src.core.process_manager - ERROR - logger.py:153 - 获取系统连接信息失败: (pid=26473)
+2025-09-08 16:55:40 - src.core.process_manager - INFO - logger.py:145 - 扫描已停止
+2025-09-08 16:55:50 - src.core.process_manager - ERROR - logger.py:153 - 获取系统连接信息失败: (pid=26473)
+2025-09-08 16:55:50 - src.core.process_manager - INFO - logger.py:145 - 开始local扫描 - 目标: localhost, 端口数量: 2
+2025-09-08 16:55:50 - src.core.process_manager - ERROR - logger.py:153 - 获取系统连接信息失败: (pid=26473)
+2025-09-08 16:55:50 - src.core.process_manager - INFO - logger.py:145 - local扫描完成 - 目标: localhost, 总端口: 0, 占用: 0, 耗时: 0.00秒
+2025-09-08 16:55:50 - src.core.process_manager - ERROR - logger.py:153 - 获取系统连接信息失败: (pid=26473)
+2025-09-08 16:55:50 - src.core.process_manager - ERROR - logger.py:153 - 获取系统连接信息失败: (pid=26473)
+2025-09-08 16:55:50 - src.core.process_manager - ERROR - logger.py:153 - 获取系统连接信息失败: (pid=26473)
+2025-09-08 16:55:50 - src.core.process_manager - INFO - logger.py:145 - 扫描已停止

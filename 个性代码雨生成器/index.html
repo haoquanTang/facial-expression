@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个性代码雨生成器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: 'Courier New', monospace;
+        }
+        
+        #matrix-canvas {
+            display: block;
+            background: #000;
+        }
+        
+        .control-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #00ff00;
+            border-radius: 8px;
+            padding: 20px;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            max-width: 300px;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+        
+        .control-group {
+            margin-bottom: 15px;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 12px;
+            color: #00ff00;
+        }
+        
+        .control-group input,
+        .control-group select {
+            width: 100%;
+            padding: 5px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .control-group input[type="range"] {
+            accent-color: #00ff00;
+        }
+        
+        .control-group input[type="color"] {
+            height: 30px;
+            cursor: pointer;
+        }
+        
+        .btn {
+            background: rgba(0, 255, 0, 0.2);
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            padding: 8px 16px;
+            margin: 5px 5px 5px 0;
+            border-radius: 3px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            background: rgba(0, 255, 0, 0.4);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .toggle-panel {
+            position: fixed;
+            top: 20px;
+            right: 340px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #00ff00;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #00ff00;
+            z-index: 1001;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        .recording {
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .watermark {
+            position: fixed;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            color: rgba(0, 255, 0, 0.7);
+            z-index: 999;
+            pointer-events: none;
+        }
+        
+        .watermark.top-left {
+            top: 20px;
+            left: 20px;
+        }
+        
+        .watermark.bottom-right {
+            bottom: 20px;
+            right: 20px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Canvas画布 -->
+    <canvas id="matrix-canvas"></canvas>
+    
+    <!-- 水印 -->
+    <div id="watermark" class="watermark top-left hidden"></div>
+    
+    <!-- 控制面板切换按钮 -->
+    <div class="toggle-panel" id="toggle-panel" title="切换控制面板">
+        ⚙
+    </div>
+    
+    <!-- 控制面板 -->
+    <div class="control-panel" id="control-panel">
+        <h3 style="margin-top: 0; text-align: center; color: #00ff00;">代码雨控制器</h3>
+        
+        <!-- 字符设置 -->
+        <div class="control-group">
+            <label for="charset">字符集:</label>
+            <select id="charset">
+                <option value="english">英文字符</option>
+                <option value="chinese">中文字符</option>
+                <option value="numbers">数字</option>
+                <option value="mixed">混合字符</option>
+                <option value="matrix">矩阵字符</option>
+            </select>
+        </div>
+        
+        <!-- 颜色设置 -->
+        <div class="control-group">
+            <label for="text-color">字符颜色:</label>
+            <input type="color" id="text-color" value="#00ff00">
+        </div>
+        
+        <div class="control-group">
+            <label for="bg-color">背景颜色:</label>
+            <input type="color" id="bg-color" value="#000000">
+        </div>
+        
+        <!-- 动画设置 -->
+        <div class="control-group">
+            <label for="speed">下落速度: <span id="speed-value">50</span></label>
+            <input type="range" id="speed" min="10" max="100" value="50">
+        </div>
+        
+        <div class="control-group">
+            <label for="density">字符密度: <span id="density-value">50</span></label>
+            <input type="range" id="density" min="10" max="100" value="50">
+        </div>
+        
+        <div class="control-group">
+            <label for="opacity">透明度: <span id="opacity-value">80</span>%</label>
+            <input type="range" id="opacity" min="10" max="100" value="80">
+        </div>
+        
+        <!-- 水印设置 -->
+        <div class="control-group">
+            <label for="watermark-text">水印文字:</label>
+            <input type="text" id="watermark-text" placeholder="输入水印文字">
+        </div>
+        
+        <div class="control-group">
+            <label for="watermark-position">水印位置:</label>
+            <select id="watermark-position">
+                <option value="none">无水印</option>
+                <option value="top-left">左上角</option>
+                <option value="bottom-right">右下角</option>
+            </select>
+        </div>
+        
+        <!-- 控制按钮 -->
+        <div class="control-group">
+            <button class="btn" id="start-btn">开始动画</button>
+            <button class="btn" id="stop-btn">停止动画</button>
+        </div>
+        
+        <div class="control-group">
+            <button class="btn" id="screenshot-btn">截图保存</button>
+            <button class="btn" id="record-btn">录制GIF</button>
+            <button class="btn" id="stop-record-btn" disabled>停止录制</button>
+        </div>
+        
+        <div class="control-group">
+            <button class="btn" id="reset-btn">重置参数</button>
+            <button class="btn" id="fullscreen-btn">全屏模式</button>
+        </div>
+    </div>
+    
+    <!-- JavaScript代码 -->
+    <script src="matrix-rain.js"></script>
+</body>
+</html>
