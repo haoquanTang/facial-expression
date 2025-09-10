@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>朋友圈九宫格图片分割工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        /* 自定义样式 */
+        .upload-area {
+            border: 2px dashed #d1d5db;
+            transition: all 0.3s ease;
+        }
+        .upload-area.dragover {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+        .preview-grid {
+            display: grid;
+            gap: 2px;
+            background-color: #e5e7eb;
+            padding: 2px;
+            border-radius: 8px;
+        }
+        .grid-3x3 {
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+        }
+        .grid-1x3 {
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: 1fr;
+        }
+        .grid-3x1 {
+            grid-template-columns: 1fr;
+            grid-template-rows: repeat(3, 1fr);
+        }
+        .grid-center {
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+        }
+        .grid-center .center-piece {
+            grid-column: 2;
+            grid-row: 2;
+        }
+        .loading {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+        .notification.show {
+            transform: translateX(0);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- 通知组件 -->
+    <div id="notification" class="notification">
+        <div class="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg">
+            <span id="notification-text">操作成功！</span>
+        </div>
+    </div>
+
+    <!-- 主容器 -->
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <!-- 标题 -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">朋友圈九宫格图片分割工具</h1>
+            <p class="text-gray-600">轻松制作九宫格拼图，提升朋友圈存在感</p>
+        </div>
+
+        <!-- 主要内容区域 -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- 左侧：图片上传和预览 -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- 图片上传区域 -->
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">📸 上传图片</h2>
+                    <div id="uploadArea" class="upload-area rounded-lg p-8 text-center cursor-pointer">
+                        <div class="space-y-4">
+                            <div class="text-6xl text-gray-400">📁</div>
+                            <div>
+                                <p class="text-lg font-medium text-gray-700">点击或拖拽图片到此处</p>
+                                <p class="text-sm text-gray-500 mt-2">支持 JPG、PNG、GIF 格式，建议尺寸 1080x1080 以上</p>
+                            </div>
+                        </div>
+                        <input type="file" id="imageInput" accept="image/*" class="hidden">
+                    </div>
+                </div>
+
+                <!-- 原图预览 -->
+                <div id="originalPreview" class="bg-white rounded-lg shadow-md p-6 hidden">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">🖼️ 原图预览</h2>
+                    <div class="flex justify-center">
+                        <img id="originalImage" class="max-w-full max-h-96 rounded-lg shadow-sm" alt="原图预览">
+                    </div>
+                    <div id="imageInfo" class="mt-4 text-sm text-gray-600 text-center"></div>
+                </div>
+
+                <!-- 分割预览 -->
+                <div id="splitPreview" class="bg-white rounded-lg shadow-md p-6 hidden">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">✂️ 分割预览</h2>
+                    <div id="previewContainer" class="flex justify-center">
+                        <div id="previewGrid" class="preview-grid w-96 h-96"></div>
+                    </div>
+                    <div class="mt-4 text-center">
+                        <button id="downloadBtn" class="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                            <span class="inline-flex items-center">
+                                <svg id="downloadIcon" class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                                <span id="downloadText">打包下载</span>
+                            </span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧：控制面板 -->
+            <div class="space-y-6">
+                <!-- 分割模式 -->
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">🎯 分割模式</h3>
+                    <div class="space-y-3">
+                        <label class="flex items-center space-x-3 cursor-pointer">
+                            <input type="radio" name="splitMode" value="grid3x3" class="text-blue-500" checked>
+                            <span class="text-gray-700">九宫格全分割 (3×3)</span>
+                        </label>
+                        <label class="flex items-center space-x-3 cursor-pointer">
+                            <input type="radio" name="splitMode" value="top3" class="text-blue-500">
+                            <span class="text-gray-700">上三格 (1×3)</span>
+                        </label>
+                        <label class="flex items-center space-x-3 cursor-pointer">
+                            <input type="radio" name="splitMode" value="left3" class="text-blue-500">
+                            <span class="text-gray-700">左三格 (3×1)</span>
+                        </label>
+                        <label class="flex items-center space-x-3 cursor-pointer">
+                            <input type="radio" name="splitMode" value="center" class="text-blue-500">
+                            <span class="text-gray-700">中心格突出</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 美化设置 -->
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">🎨 美化设置</h3>
+                    
+                    <!-- 边框设置 -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">边框粗细</label>
+                        <input type="range" id="borderWidth" min="0" max="20" value="2" class="w-full">
+                        <div class="flex justify-between text-xs text-gray-500 mt-1">
+                            <span>0px</span>
+                            <span id="borderWidthValue">2px</span>
+                            <span>20px</span>
+                        </div>
+                    </div>
+
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">边框颜色</label>
+                        <input type="color" id="borderColor" value="#ffffff" class="w-full h-10 rounded border">
+                    </div>
+
+                    <!-- 圆角设置 -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">圆角弧度</label>
+                        <input type="range" id="borderRadius" min="0" max="50" value="0" class="w-full">
+                        <div class="flex justify-between text-xs text-gray-500 mt-1">
+                            <span>0px</span>
+                            <span id="borderRadiusValue">0px</span>
+                            <span>50px</span>
+                        </div>
+                    </div>
+
+                    <!-- 水印设置 -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">水印文字</label>
+                        <input type="text" id="watermarkText" placeholder="输入水印文字" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        
+                        <div class="mt-3">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">水印位置</label>
+                            <select id="watermarkPosition" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="none">无水印</option>
+                                <option value="top-left">左上角</option>
+                                <option value="top-right">右上角</option>
+                                <option value="bottom-left">左下角</option>
+                                <option value="bottom-right">右下角</option>
+                                <option value="center">居中</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 操作按钮 -->
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">⚡ 快速操作</h3>
+                    <div class="space-y-3">
+                        <button id="previewBtn" class="w-full bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                            🔄 生成预览
+                        </button>
+                        <button id="resetBtn" class="w-full bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded-lg transition-colors">
+                            🔄 重置设置
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 使用提示 -->
+                <div class="bg-blue-50 rounded-lg p-4">
+                    <h4 class="text-sm font-semibold text-blue-800 mb-2">💡 使用提示</h4>
+                    <ul class="text-xs text-blue-700 space-y-1">
+                        <li>• 建议上传正方形图片获得最佳效果</li>
+                        <li>• 添加白色边框可解决朋友圈拼接缝隙</li>
+                        <li>• 图片会按顺序编号便于发布</li>
+                        <li>• 支持一键打包下载所有分割图片</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="grid-splitter.js"></script>
+</body>
+</html>

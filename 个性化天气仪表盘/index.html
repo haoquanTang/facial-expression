@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个性化天气仪表盘</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="styles.css" rel="stylesheet">
+    <style>
+        /* 自定义样式 */
+        .weather-card {
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .glass-effect {
+            backdrop-filter: blur(15px);
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .draggable-item {
+            cursor: move;
+            transition: all 0.3s ease;
+        }
+        
+        .draggable-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+        
+        .sortable-ghost {
+            opacity: 0.4;
+        }
+        
+        .theme-sunny {
+            background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+        }
+        
+        .theme-rainy {
+            background: linear-gradient(135deg, #636e72 0%, #2d3436 100%);
+        }
+        
+        .theme-snowy {
+            background: linear-gradient(135deg, #ddd6fe 0%, #8b5cf6 100%);
+        }
+        
+        .theme-cloudy {
+            background: linear-gradient(135deg, #a29bfe 0%, #6c5ce7 100%);
+        }
+        
+        .weather-icon {
+            font-size: 3rem;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .temperature-display {
+            font-size: 4rem;
+            font-weight: 300;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .component-selector {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .loading-spinner {
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            min-width: 300px;
+            padding: 16px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+        
+        .notification.success {
+            background: linear-gradient(135deg, #00b894, #00a085);
+        }
+        
+        .notification.error {
+            background: linear-gradient(135deg, #e17055, #d63031);
+        }
+        
+        .notification.warning {
+            background: linear-gradient(135deg, #fdcb6e, #e17055);
+        }
+    </style>
+</head>
+<body class="min-h-screen theme-sunny transition-all duration-1000" id="app">
+    <!-- 通知系统 -->
+    <div v-if="notification.show" 
+         :class="['notification', 'show', notification.type]">
+        <div class="flex items-center justify-between">
+            <span>{{ notification.message }}</span>
+            <button @click="hideNotification" class="ml-4 text-white hover:text-gray-200">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+    
+    <!-- 主容器 -->
+    <div class="container mx-auto px-4 py-6">
+        <!-- 头部区域 -->
+        <header class="glass-effect rounded-2xl p-6 mb-6 text-white">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="mb-4 md:mb-0">
+                    <h1 class="text-3xl font-bold mb-2">
+                        <i class="fas fa-cloud-sun mr-3"></i>
+                        个性化天气仪表盘
+                    </h1>
+                    <p class="text-white/80">{{ currentLocation || '获取位置中...' }}</p>
+                </div>
+                
+                <!-- 城市搜索 -->
+                <div class="flex items-center space-x-4 search-controls">
+                    <div class="relative">
+                        <input v-model="searchCity" 
+                               @keyup.enter="searchWeather"
+                               placeholder="搜索城市..."
+                               class="bg-white/20 border border-white/30 rounded-lg px-4 py-2 text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-white/50">
+                        <button @click="searchWeather" 
+                                class="absolute right-2 top-1/2 transform -translate-y-1/2 text-white/70 hover:text-white">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- 设置按钮 -->
+                    <button @click="showSettings = !showSettings" 
+                            class="bg-white/20 hover:bg-white/30 rounded-lg p-2 transition-colors">
+                        <i class="fas fa-cog"></i>
+                    </button>
+                    
+                    <!-- 刷新按钮 -->
+                    <button @click="refreshWeather" 
+                            :disabled="isLoading"
+                            class="bg-white/20 hover:bg-white/30 rounded-lg p-2 transition-colors disabled:opacity-50">
+                        <i :class="['fas fa-sync-alt', { 'loading-spinner': isLoading }]"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+        
+        <!-- 主要天气信息 -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 weather-main-grid">
+            <!-- 当前天气 -->
+            <div class="lg:col-span-1">
+                <div class="weather-card rounded-2xl p-6 text-white text-center fade-in current-weather-card">
+                    <div v-if="currentWeather.icon" class="weather-icon mb-4">
+                        <i :class="getWeatherIcon(currentWeather.icon)"></i>
+                    </div>
+                    <div class="temperature-display mb-2">
+                        {{ currentWeather.temperature }}°
+                    </div>
+                    <div class="text-xl mb-2">{{ currentWeather.description }}</div>
+                    <div class="text-white/80">
+                        体感温度 {{ currentWeather.feelsLike }}°
+                    </div>
+                    <div class="mt-4 grid grid-cols-2 gap-4 text-sm weather-details-grid">
+                        <div>
+                            <i class="fas fa-tint mr-2"></i>
+                            湿度 {{ currentWeather.humidity }}%
+                        </div>
+                        <div>
+                            <i class="fas fa-wind mr-2"></i>
+                            风速 {{ currentWeather.windSpeed }} km/h
+                        </div>
+                        <div>
+                            <i class="fas fa-eye mr-2"></i>
+                            能见度 {{ currentWeather.visibility }} km
+                        </div>
+                        <div>
+                            <i class="fas fa-thermometer-half mr-2"></i>
+                            气压 {{ currentWeather.pressure }} hPa
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 图表区域 -->
+            <div class="lg:col-span-2">
+                <div class="weather-card rounded-2xl p-6 chart-container">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-white text-lg font-semibold">
+                            <i class="fas fa-chart-line mr-2"></i>
+                            7天天气趋势
+                        </h3>
+                        <div class="flex space-x-2 chart-controls">
+                            <button @click="chartType = 'temperature'" 
+                                    :class="['px-3 py-1 rounded text-sm transition-colors', 
+                                             chartType === 'temperature' ? 'bg-white text-blue-600' : 'bg-white/20 text-white hover:bg-white/30']">
+                                温度
+                            </button>
+                            <button @click="chartType = 'humidity'" 
+                                    :class="['px-3 py-1 rounded text-sm transition-colors', 
+                                             chartType === 'humidity' ? 'bg-white text-blue-600' : 'bg-white/20 text-white hover:bg-white/30']">
+                                湿度
+                            </button>
+                            <button @click="chartType = 'wind'" 
+                                    :class="['px-3 py-1 rounded text-sm transition-colors', 
+                                             chartType === 'wind' ? 'bg-white text-blue-600' : 'bg-white/20 text-white hover:bg-white/30']">
+                                风力
+                            </button>
+                        </div>
+                    </div>
+                    <div id="weatherChart" style="height: 300px;"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 可拖拽仪表盘组件 -->
+        <div class="mb-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-white text-2xl font-bold">
+                    <i class="fas fa-th-large mr-2"></i>
+                    我的仪表盘
+                </h2>
+                <button @click="showComponentSelector = !showComponentSelector" 
+                        class="glass-effect text-white px-4 py-2 rounded-lg hover:bg-white/20 transition-colors">
+                    <i class="fas fa-plus mr-2"></i>
+                    添加组件
+                </button>
+            </div>
+            
+            <!-- 组件选择器 -->
+            <div v-if="showComponentSelector" class="glass-effect rounded-xl p-4 mb-4 fade-in">
+                <h3 class="text-white text-lg font-semibold mb-3">选择要添加的组件</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 component-selector">
+                    <button v-for="component in availableComponents" 
+                            :key="component.id"
+                            @click="addComponent(component)"
+                            :disabled="isComponentActive(component.id)"
+                            class="bg-white/20 hover:bg-white/30 disabled:opacity-50 disabled:cursor-not-allowed text-white p-3 rounded-lg transition-colors text-sm">
+                        <i :class="component.icon + ' mb-2 block'"></i>
+                        {{ component.name }}
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 仪表盘组件网格 -->
+            <div id="dashboard-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div v-for="component in activeComponents" 
+                     :key="component.id"
+                     :data-id="component.id"
+                     class="draggable-item weather-card rounded-xl p-4 text-white fade-in">
+                    <div class="flex justify-between items-center mb-3">
+                        <h4 class="font-semibold flex items-center">
+                            <i :class="component.icon + ' mr-2'"></i>
+                            {{ component.name }}
+                        </h4>
+                        <button @click="removeComponent(component.id)" 
+                                class="text-white/70 hover:text-white transition-colors">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- 组件内容 -->
+                    <div class="component-content">
+                        <!-- 空气质量 -->
+                        <div v-if="component.id === 'air-quality'">
+                            <div class="text-2xl font-bold mb-1">{{ airQuality.aqi || '--' }}</div>
+                            <div class="text-sm text-white/80 mb-2">{{ airQuality.level || '获取中...' }}</div>
+                            <div class="w-full bg-white/20 rounded-full h-2">
+                                <div :class="getAQIColor(airQuality.aqi)" 
+                                     :style="{ width: Math.min((airQuality.aqi || 0) / 300 * 100, 100) + '%' }"
+                                     class="h-2 rounded-full transition-all duration-500"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- 紫外线指数 -->
+                        <div v-else-if="component.id === 'uv-index'">
+                            <div class="text-2xl font-bold mb-1">{{ uvIndex.value || '--' }}</div>
+                            <div class="text-sm text-white/80">{{ uvIndex.level || '获取中...' }}</div>
+                        </div>
+                        
+                        <!-- 降水概率 -->
+                        <div v-else-if="component.id === 'precipitation'">
+                            <div class="text-2xl font-bold mb-1">{{ precipitation.probability || '--' }}%</div>
+                            <div class="text-sm text-white/80">{{ precipitation.type || '获取中...' }}</div>
+                        </div>
+                        
+                        <!-- 穿衣建议 -->
+                        <div v-else-if="component.id === 'clothing'">
+                            <div class="text-lg mb-2">{{ clothing.suggestion || '获取中...' }}</div>
+                            <div class="text-sm text-white/80">{{ clothing.description || '' }}</div>
+                        </div>
+                        
+                        <!-- 洗车指数 -->
+                        <div v-else-if="component.id === 'car-wash'">
+                            <div class="text-2xl font-bold mb-1">{{ carWash.index || '--' }}</div>
+                            <div class="text-sm text-white/80">{{ carWash.suggestion || '获取中...' }}</div>
+                        </div>
+                        
+                        <!-- 运动指数 -->
+                        <div v-else-if="component.id === 'sports'">
+                            <div class="text-2xl font-bold mb-1">{{ sports.index || '--' }}</div>
+                            <div class="text-sm text-white/80">{{ sports.suggestion || '获取中...' }}</div>
+                        </div>
+                        
+                        <!-- 日出日落 -->
+                        <div v-else-if="component.id === 'sun-times'">
+                            <div class="flex justify-between">
+                                <div class="text-center">
+                                    <div class="text-yellow-300 mb-1"><i class="fas fa-sun"></i></div>
+                                    <div class="text-sm">{{ sunTimes.sunrise || '--' }}</div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-orange-300 mb-1"><i class="fas fa-moon"></i></div>
+                                    <div class="text-sm">{{ sunTimes.sunset || '--' }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 月相 -->
+                        <div v-else-if="component.id === 'moon-phase'">
+                            <div class="text-center">
+                                <div class="text-3xl mb-2">{{ moonPhase.icon || '🌙' }}</div>
+                                <div class="text-sm text-white/80">{{ moonPhase.name || '获取中...' }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 设置面板 -->
+        <div v-if="showSettings" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showSettings = false">
+            <div class="glass-effect rounded-2xl p-6 max-w-md w-full mx-4 text-white">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-bold">设置</h3>
+                    <button @click="showSettings = false" class="text-white/70 hover:text-white">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="space-y-4">
+                    <!-- API选择 -->
+                    <div>
+                        <label class="block text-sm font-medium mb-2">天气数据源</label>
+                        <select v-model="settings.apiSource" 
+                                class="w-full bg-white/20 border border-white/30 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-white/50">
+                            <option value="openweather">OpenWeatherMap</option>
+                            <option value="amap">高德地图</option>
+                            <option value="baidu">百度地图</option>
+                        </select>
+                    </div>
+                    
+                    <!-- API密钥 -->
+                    <div>
+                        <label class="block text-sm font-medium mb-2">API密钥</label>
+                        <input v-model="settings.apiKey" 
+                               type="password"
+                               placeholder="请输入API密钥"
+                               class="w-full bg-white/20 border border-white/30 rounded-lg px-3 py-2 text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-white/50">
+                    </div>
+                    
+                    <!-- 温度单位 -->
+                    <div>
+                        <label class="block text-sm font-medium mb-2">温度单位</label>
+                        <div class="flex space-x-4">
+                            <label class="flex items-center">
+                                <input v-model="settings.temperatureUnit" 
+                                       type="radio" 
+                                       value="celsius" 
+                                       class="mr-2">
+                                摄氏度 (°C)
+                            </label>
+                            <label class="flex items-center">
+                                <input v-model="settings.temperatureUnit" 
+                                       type="radio" 
+                                       value="fahrenheit" 
+                                       class="mr-2">
+                                华氏度 (°F)
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- 自动刷新 -->
+                    <div>
+                        <label class="block text-sm font-medium mb-2">自动刷新间隔</label>
+                        <select v-model="settings.refreshInterval" 
+                                class="w-full bg-white/20 border border-white/30 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-white/50">
+                            <option value="0">关闭</option>
+                            <option value="300000">5分钟</option>
+                            <option value="600000">10分钟</option>
+                            <option value="1800000">30分钟</option>
+                            <option value="3600000">1小时</option>
+                        </select>
+                    </div>
+                    
+                    <!-- 通知设置 -->
+                    <div>
+                        <label class="flex items-center">
+                            <input v-model="settings.enableNotifications" 
+                                   type="checkbox" 
+                                   class="mr-2">
+                            启用天气预警通知
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end space-x-3 mt-6">
+                    <button @click="resetSettings" 
+                            class="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg transition-colors">
+                        重置
+                    </button>
+                    <button @click="saveSettings" 
+                            class="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 rounded-lg transition-colors">
+                        保存
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="weather-dashboard.js"></script>
+</body>
+</html>
