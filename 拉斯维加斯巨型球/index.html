@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>拉斯维加斯巨型球 - 动态表情展示</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- 背景粒子效果 -->
+    <div class="particles-bg" id="particles-bg"></div>
+    
+    <!-- 主容器 -->
+    <div class="main-container">
+        <!-- 状态显示栏 -->
+        <div class="status-bar">
+            <div class="status-info">
+                <div class="current-expression-name" id="currentExpressionName">开心</div>
+                <div class="play-status" id="playStatus">
+                    <i class="fas fa-play"></i>
+                    <span>播放中</span>
+                </div>
+            </div>
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="time-display" id="timeDisplay">00:02 / 00:02</div>
+            </div>
+            <div class="settings-btn" id="settingsBtn">
+                <i class="fas fa-cog"></i>
+            </div>
+        </div>
+
+        <!-- 巨型球容器 -->
+        <div class="sphere-container">
+            <!-- LED像素网格背景 -->
+            <div class="led-grid" id="ledGrid"></div>
+            
+            <!-- 巨型球主体 -->
+            <div class="mega-sphere" id="megaSphere">
+                <!-- 表情显示区域 -->
+                <div class="expression-display" id="expressionDisplay">
+                    <div class="expression-emoji" id="expressionEmoji">😊</div>
+                </div>
+                
+                <!-- 光晕效果 -->
+                <div class="sphere-glow"></div>
+                <div class="sphere-pulse"></div>
+            </div>
+            
+            <!-- 边框装饰 -->
+            <div class="sphere-border"></div>
+        </div>
+
+        <!-- 控制面板 -->
+        <div class="control-panel">
+            <!-- 播放控制 -->
+            <div class="playback-controls">
+                <button class="control-btn" id="prevBtn" title="上一个">
+                    <i class="fas fa-step-backward"></i>
+                </button>
+                <button class="control-btn play-pause-btn" id="playPauseBtn" title="播放/暂停">
+                    <i class="fas fa-pause"></i>
+                </button>
+                <button class="control-btn" id="nextBtn" title="下一个">
+                    <i class="fas fa-step-forward"></i>
+                </button>
+            </div>
+            
+            <!-- 速度控制 -->
+            <div class="speed-control">
+                <label for="speedSlider">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>速度</span>
+                </label>
+                <input type="range" id="speedSlider" min="500" max="5000" value="2000" step="100">
+                <span class="speed-value" id="speedValue">2.0s</span>
+            </div>
+            
+            <!-- 表情选择器 -->
+            <div class="expression-selector">
+                <div class="expression-list" id="expressionList">
+                    <!-- 表情按钮将通过JavaScript动态生成 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 设置面板 -->
+    <div class="settings-panel" id="settingsPanel">
+        <div class="settings-header">
+            <h3>设置</h3>
+            <button class="close-btn" id="closeSettingsBtn">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="settings-content">
+            <!-- 播放设置 -->
+            <div class="settings-group">
+                <h4>播放设置</h4>
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="autoPlayToggle" checked>
+                        <span class="checkbox-custom"></span>
+                        自动播放
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="shuffleToggle">
+                        <span class="checkbox-custom"></span>
+                        随机播放
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="repeatToggle" checked>
+                        <span class="checkbox-custom"></span>
+                        循环播放
+                    </label>
+                </div>
+            </div>
+            
+            <!-- 视觉效果设置 -->
+            <div class="settings-group">
+                <h4>视觉效果</h4>
+                <div class="setting-item">
+                    <label for="brightnessSlider">LED亮度</label>
+                    <input type="range" id="brightnessSlider" min="0" max="100" value="80">
+                    <span class="slider-value" id="brightnessValue">80%</span>
+                </div>
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="glowEffectToggle" checked>
+                        <span class="checkbox-custom"></span>
+                        光晕效果
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="particlesToggle" checked>
+                        <span class="checkbox-custom"></span>
+                        背景粒子
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <label for="transitionSlider">过渡时长</label>
+                    <input type="range" id="transitionSlider" min="100" max="1000" value="500">
+                    <span class="slider-value" id="transitionValue">0.5s</span>
+                </div>
+            </div>
+            
+            <!-- 主题设置 -->
+            <div class="settings-group">
+                <h4>主题风格</h4>
+                <div class="theme-selector">
+                    <button class="theme-btn active" data-theme="neon">霓虹</button>
+                    <button class="theme-btn" data-theme="cyber">赛博</button>
+                    <button class="theme-btn" data-theme="retro">复古</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 加载脚本 -->
+    <script src="expressions.js"></script>
+    <script src="animations.js"></script>
+    <script src="sphere.js"></script>
+</body>
+</html>
